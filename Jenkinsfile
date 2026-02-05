@@ -1,37 +1,15 @@
 pipeline {
     agent any
-    tools{
-        jdk 'java-17'
-        maven 'Maven3.9'
-    }
-     stages{
-        stage("Git Checkout"){
-            steps{
-                git branch: 'master', changelog: false, poll: false, url: 'https://github.com/shrawan949/alein.git'
-            }
-        }
-        stage("Compile"){
-            steps{
-                sh "mvn clean compile"
-            }
-        }
-         stage("Test Cases"){
-            steps{
-                sh "mvn test"
-            }
-        }
-pipeline {
-    agent any                // where to run the pipeline
 
-    environment {            // global environment variables/tools
+    environment {
         SCANNER_HOME = tool 'sonar-scanner'
     }
 
-    stages {                 // all your stages go here
+    stages {
 
         stage('Checkout') {
             steps {
-                git 'https://your-repo-url.git'
+                git 'https://github.com/shrawan949/alein.git'
             }
         }
 
@@ -56,14 +34,35 @@ pipeline {
             }
         }
 
-        stage('Build') {
+        stage('Build Maven') {
             steps {
                 sh "mvn clean install"
             }
         }
 
-        // Add more stages here (Docker build, TRIVY, Deploy, etc.)
+        stage('Docker Build and Push') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'Docker-Hub', toolName: 'docker') {
+                        sh "docker build -t swapnilhub/loginwebappseven ."
+                        sh "docker push swapnilhub/loginwebappseven:latest"
+                    }
+                }
+            }
+        }
 
-    } // end of stages
-} // end of pipeline
+        stage('TRIVY Scan') {
+            steps {
+                sh "trivy image swapnilhub/loginwebappseven:latest > trivyimage.txt"
+            }
+        }
+
+        stage('Deploy Docker Container') {
+            steps {
+                sh "docker run -d --name=loginwebseven1 -p 8083:8080 swapnilhub/loginwebappseven:latest"
+            }
+        }
+
+    } // end stages
+} // end pipeline
 
